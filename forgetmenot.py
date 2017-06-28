@@ -110,15 +110,16 @@ def network_info(outFile):
     if os.path.isfile('/etc/resolv.conf'):
         filecontents_grab(outFile, '/etc/resolv.conf')
         
-    try:
-        path = '/etc/sysconfig/network-scripts/'
-        interfaces = os.listdir(path)
-        for file in interfaces:
-            if re.search('^ifcfg-[.]*',  file):
-                if os.path.isfile((path+file)):
-                    filecontents_grab(outFile,  os.path.join(path,  file))
-    except:
-        print('/etc/sysconfig/network-scripts/ is not present or accessible')
+    if os.path.isdir('/etc/sysconfig/network-scripts'):
+        try:
+            path = '/etc/sysconfig/network-scripts/'
+            interfaces = os.listdir(path)
+            for file in interfaces:
+                if re.search('^ifcfg-[.]*',  file):
+                    if os.path.isfile((path+file)):
+                        filecontents_grab(outFile,  os.path.join(path, file))
+        except:
+            print('/etc/sysconfig/network-scripts/ is not present or accessible')
         
     try:
         outFile.write('\nifconfig output:\n')
@@ -167,7 +168,7 @@ def logfile_ips(outFile):
     unique_ips = [None]
     for path, subdirs, files in os.walk('/'):
             for name in files:
-                if re.search('[.]*\.log', name):
+                if re.search('[.]*\.log$', name):
                     #print('log file: ' + name)
                     try:
                         with open(os.path.join(path, name), 'r') as logFile:
