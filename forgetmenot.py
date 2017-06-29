@@ -62,6 +62,7 @@ def lootme_windows(outfiles):
     import winreg
     if "systemdrive" in os.environ:
         osroot = os.listdir(os.environ["systemdrive"])
+        print('%systemdrive% = '+str(osroot))
     if "computername" in os.environ:
         hostloot = (os.environ["computername"]+"_loot.txt")
     else:
@@ -83,6 +84,8 @@ def lootme_linux(outfiles):
         machine_info(outFile)
         #gather network info
         network_info(outFile)
+        # gather disk info
+        disk_info(outFile)
         # search user files for extractable data
         userdata_extract_lin(outFile)
         # search for list of user files
@@ -121,16 +124,15 @@ def network_info(outFile):
         except:
             print('/etc/sysconfig/network-scripts/ is not present or accessible')
         
-    try:
-        outFile.write('\nifconfig output:\n')
-        p = Popen(["ifconfig"],  stdout=PIPE)
-        (output,  err) = p.communicate()
-        exit_code = p.wait()
-        for line in output:
-            outFile.write(line)
-    except:
-        print('Error executing ifconfig')
+    pArgs = ["ifconfig"]
+    execoutput_grab(outFile, pArgs)
 ### Network info Linux --end--
+
+### Disk info Linux --start--
+def disk_info(outFile):
+    pArgs = ["df"]
+    execoutput_grab(outFile, pArgs)
+### Disk info Linux --end--
 
 ### User data extraction Linux --start--
 def userdata_extract_lin(outFile):
@@ -144,7 +146,7 @@ def userdata_extract_lin(outFile):
             # grab bash history
             if os.path.isfile((path+'.bash_history')):
                 filecontents_grab(outFile,  os.path.join(path,  '.bash_history'))
-### User data extraction --end--
+### User data extraction Linux --end--
 
 ### User files list Linux --start--
 def userfiles_list_lin(outfiles):
@@ -328,6 +330,19 @@ def filecontents_grab(outFile,  contentfile):
     except:
         print('Error reading from '+contentfile+' file.')
 ### grab file contents --end--
+
+### grab execution output --start--
+def execoutput_grab(outFile, pArgs):
+    try:
+        outFile.write('\n'+pArgs[0]+' output:\n')
+        p = Popen(pArgs, stdout=PIPE)
+        (output,  err) = p.communicate()
+        exit_code = p.wait()
+        for line in output:
+            outFile.write(line)
+    except:
+        print('Error executing '+pArgs[0])
+### grab execution output --end--
 
 ### Program init --start--
 mainmenu()
