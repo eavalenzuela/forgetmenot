@@ -2,9 +2,13 @@
 local looting script in python
 
 06/30/2017: Added additional Windows device queries
+
 06/29/2017: Made the file-reader and command-execution calls their own functions, to clean up the code greatly and make it easy to add new calls.
+
 06/28/2017: Additional Linux user info and expanded Windows device info calls
+
 06/27/2017: Added a simple client/server system for zipping up output files and sending them to your attacker machine: fmn_file_receiver.py is the server file. NOTE: currently, send a zip Win-to-Lin, or vice versa will result in a corrupted zip file, but Win-to-Win or Lin-to-Lin is fine.
+
 06/26/2017: Here on back I wasn't keeping track of changes... :x
 
 Note: This script is incomplete! 
