@@ -6,7 +6,7 @@ from subprocess import Popen, PIPE
 #               a local looting script in Python for Win/Lin/OSX hosts
 #
 #       Eric Valenzuela, eevn.io
-#       June 29, 2017
+#       June 30, 2017
 #
 
 ### Main Menu --start--
@@ -114,6 +114,7 @@ def machine_info(outFile):
 
 ### Machine info extra Windows --start--
 def machine_info_extra_win(outFile):
+    # wmic commands
     pArgs = ["wmic", "os"]
     execoutput_grab(outFile, pArgs)
     pArgs = ["wmic", "product"]
@@ -123,6 +124,11 @@ def machine_info_extra_win(outFile):
     pArgs = ["wmic", "netlogin"]
     execoutput_grab(outFile, pArgs)
     pArgs = ["wmic", "startup"]
+    execoutput_grab(outFile, pArgs)
+    # powershell commands
+    pArgs = ["powershell", "set-executionpolicy", "unrestricted"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["powershell", "get-ciminstance", "win32_operatingsystem", "|", "FL", "*"]
     execoutput_grab(outFile, pArgs)
 ### Machine info extra Windows --end--
 
@@ -193,7 +199,12 @@ def network_info_win(outFile):
     execoutput_grab(outFile, pArgs)
     pArgs = ["wmic", "share"]
     execoutput_grab(outFile, pArgs)
-
+    pArgs = ["powershell", "set-executionpolicy", "unrestricted"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["powershell", "get-netipconfiguration"]
+    execoutput_grab(outFile, pArgs)
+    pArgs = ["arp", "/a"]
+    execoutput_grab(outFile, pArgs)
 ### Network info Windows --end--
 
 ### Disk info Linux --start--
