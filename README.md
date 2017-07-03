@@ -1,6 +1,8 @@
 # forgetmenot
 local looting script in python
 
+07/03/2017: Added 2 native (bash and cmd) scripts querying much of the same information, in case Python is not and cannot be installed. They do not output to a file, so pipe it yourself.
+
 06/30/2017: Added additional Windows device queries
 
 06/29/2017: Made the file-reader and command-execution calls their own functions, to clean up the code greatly and make it easy to add new calls.
