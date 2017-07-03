@@ -1,4 +1,4 @@
-@echo on
+@echo off
 
 rem
 rem	fogetmenot_win.bat
