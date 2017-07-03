@@ -61,27 +61,30 @@ def lootme_stub(outfiles):
 def lootme_windows(outfiles):
     try:
         import winreg
+        # to be filled later
     except:
         print('winreg module not present')
-    if "systemdrive" in os.environ:
-        osroot = os.listdir(os.environ["systemdrive"])
-        print('%systemdrive% = '+str(osroot))
-    if "computername" in os.environ:
-        hostloot = (os.environ["computername"]+"_loot.txt")
-    else:
-        hostloot = ((platform.uname()[1])+"_loot.txt")
+    
+    hostloot = ((platform.uname()[1])+"_loot.txt")
     outfiles.append(hostloot)
     with open(hostloot, 'w') as outFile:
-        # Dump machine info
+        # gather machine info
         machine_info(outFile)
+        # gather extended machine info 
         machine_info_extra_win(outFile)
+        # gather user info
         user_info_win(outFile)
+        # gather network info
         network_info_win(outFile)
+        # gather log file IPs
+        logfile_ips(outFile)
+
     return outfiles
 ### lootme_windows --end--
 
 ### lootme_linux --start--
 def lootme_linux(outfiles):
+    
     hostloot = (platform.uname()[1]+'_loot.txt')
     outfiles.append(hostloot)
     with open(hostloot, 'w') as outFile:
@@ -93,6 +96,8 @@ def lootme_linux(outfiles):
         network_info_lin(outFile)
         # gather disk info
         disk_info_lin(outFile)
+        # gather process info
+        process_info_lin(outFile)
         # search user files for extractable data
         userdata_extract_lin(outFile)
         # search for list of user files
@@ -117,17 +122,23 @@ def machine_info_extra_win(outFile):
     # wmic commands
     pArgs = ["wmic", "os"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "product"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "logicaldisk"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "netlogin"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "startup"]
     execoutput_grab(outFile, pArgs)
+    
     # powershell commands
     pArgs = ["powershell", "set-executionpolicy", "unrestricted"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["powershell", "get-ciminstance", "win32_operatingsystem", "|", "FL", "*"]
     execoutput_grab(outFile, pArgs)
 ### Machine info extra Windows --end--
@@ -136,8 +147,10 @@ def machine_info_extra_win(outFile):
 def user_info_win(outFile):
     pArgs = ["net", "user"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "UserAccount", "get", "Name"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "rdaccount"]
     execoutput_grab(outFile, pArgs)
 ### User info Windows --end--
@@ -146,10 +159,16 @@ def user_info_win(outFile):
 def user_info_lin(outFile):
     pArgs = ["getent", "passwd"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["w"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["last"]
     execoutput_grab(outFile, pArgs)
+
+    path = '/etc/sudoers'
+    if os.path.isfile(path):
+        filecontents_grab(outFile, path)
 ### User info Linux --end--
 
 ### Network info Linux --start--
@@ -173,6 +192,7 @@ def network_info_lin(outFile):
         
     pArgs = ["ifconfig"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["arp", "-v"]
     execoutput_grab(outFile, pArgs)
 
@@ -183,6 +203,7 @@ def network_info_lin(outFile):
         try:
             pArgs = ["tcpdump", "&"]
             execoutput_grab(outFile, pArgs)
+            
             pArgs = ["sleep", "60s", "&&", "pkill", "-HUP", "-f", "tcpdump"]
             execoutput_grab(outFile, pArgs)
         except:
@@ -193,16 +214,24 @@ def network_info_lin(outFile):
 
 ### Network info Windows --start--
 def network_info_win(outFile):
+    pArgs = ["netstat"]
+    execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "nicconfig"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "netuse"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["wmic", "share"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["powershell", "set-executionpolicy", "unrestricted"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["powershell", "get-netipconfiguration"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["arp", "/a"]
     execoutput_grab(outFile, pArgs)
 ### Network info Windows --end--
@@ -211,8 +240,10 @@ def network_info_win(outFile):
 def disk_info_lin(outFile):
     pArgs = ["df"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["lsblk"]
     execoutput_grab(outFile, pArgs)
+    
     pArgs = ["blkid"]
     execoutput_grab(outFile, pArgs)
     
@@ -220,6 +251,28 @@ def disk_info_lin(outFile):
     if os.path.isfile(path):
         filecontents_grab(outFile, path)
 ### Disk info Linux --end--
+
+### Process info Linux --start --
+def process_info_lin(outFile):
+    pArgs = ["ps", "aux", "-ef", "|", "grep", "root"]
+    execoutput_grab(outFile, pArgs)
+    
+    pArgs = ["top"]
+    execoutput_grab(outFile, pArgs)
+    
+    path = '/etc/service'
+    if os.path.isfile(path):
+        filecontents_grab(outFile, path)
+    
+    pArgs = ["dpkg", "-l"]
+    execoutput_grab(outFile, pArgs)
+    
+    pArgs = ["rpm", "-qa"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["sudo", "-l"]
+    execoutput_grab(outFile, pArgs)
+### Process info Linux --end--
 
 ### User data extraction Linux --start--
 def userdata_extract_lin(outFile):
@@ -263,7 +316,7 @@ def logfile_ips(outFile):
                         with open(os.path.join(path, name), 'r') as logFile:
                             for line in logFile:
                                 #ips = re.findall('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', line)
-                                # this regex is the best way I've come up with to only grab valid IPs. If you do not reverse the order from how the IP is read (i.e. by checking right-to-left), then 80.80.80.80 will return 80.80.80.8, since the single-digit will match before the 2-digit possibility is checked.
+                                # this regex is the best way I've come up with to only grab valid IPs. If you do not reverse the order from how the IP is read (i.e. by checking right-to-left), then 80.80.80.80 will return 80.80.80.8, since the first, single-digit of the final octet will match before the 2-digit possibility is checked.
                                 ips  = re.findall('((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))', line)
                                 if ips is not None:
                                     for ip in ips:
