@@ -6,7 +6,7 @@ from subprocess import Popen, PIPE
 #               a local looting script in Python for Win/Lin/OSX hosts
 #
 #       Eric Valenzuela, eevn.io
-#       June 30, 2017
+#       May 02, 2018
 #
 
 ### Main Menu --start--
