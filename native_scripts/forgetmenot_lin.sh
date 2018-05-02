@@ -5,10 +5,10 @@
 #	standalone linux looting script
 #
 #	Eric Valenzuela, eevn.io
-#	07/03/2017
+#	05/02/2018
 #
 
-print 'This script does not save on its own. To save, pipe the output to a file.'
+echo 'This script does not save on its own. To save, pipe the output to a file.'
 
 uname -a
 printenv
