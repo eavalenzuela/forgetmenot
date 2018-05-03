@@ -11,6 +11,19 @@ What the requests looks like:
 
 ![get_requests](https://i.imgur.com/8BUyZWn.png)
 
+Decoded:
+> Machine info:
+> eric-valenzuela.local
+> Darwin
+> 16.7.0
+> Darwin Kernel Version 16.7.0: Tue Jan 30 11:27:06 PST 2018; root:xnu-3789.73.11~1/RELEASE_X86_64
+> Environment vars:
+> {'TERM_PROGRAM_VERSION': '3.1.6', 'LOGNAME': 'evalenzuela', 'USER': 'evalenzuela', 'PATH': '/opt/local/bin:/opt/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/munki:/Applications/Wireshark.app/Contents/MacOS', 'HOME': '/Users/evalenzuela', 'TERM_PROGRAM': 'iTerm.app', 'LANG': 'en_US.UTF-8', 'TERM': 'xterm-256color', 'Apple_PubSub_Socket_Render': '/private/tmp/com.apple.launchd.Pp6sjDlhg4/Render', 'COLORFGBG': '12;8', 'SHLVL': '1', 'XPC_FLAGS': '0x0', 'ITERM_SESSION_ID': 'w2t0p0:9A6E485B-39D6-48EB-996D-3B6286950132', '_': '/usr/local/bin/python', 'TERM_SESSION_ID': 'w2t0p0:9A6E485B-39D6-48EB-996D-3B6286950132', 'XPC_SERVICE_NAME': '0', 'SSH_AUTH_SOCK': '/private/tmp/com.apple.launchd.5fXqxLYwqj/Listeners', 'SHELL': '/bin/bash', 'ITERM_PROFILE': 'Default', 'TMPDIR': '/var/folders/hk/5k8x_g7j3k91l5v0p9xc3r2c28p93n/T/', 'OLDPWD': '/Users/evalenzuela', '__CF_USER_TEXT_ENCODING': '0x48B2475:0x0:0x0', 'PWD': '/Users/evalenzuela/gits/eavalenzuela7/forgetmenot', 'COLORTERM': 'truecolor'}
+>
+> dscl output:
+> _amavisd
+
+
 05/02/2018: Added OSX logic to main script and native shell script for osx.
 
 07/03/2017: Added 2 native (bash and cmd) scripts querying much of the same information, in case Python is not and cannot be installed. They do not output to a file, so pipe it yourself. Also added more Linux enumeration checks to main script.
