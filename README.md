@@ -1,6 +1,16 @@
 # forgetmenot
 local looting script in python
 
+05/03/2018: Added ability to exfil files via breaking them into chunks, encoding them in base64, and sending them as GET requests to the specified address. This can take a long time with a large file (though you can change the 'chunk size' from its current 10 lines to something larger if you don't mind very large b64 strings).
+
+Catching the requests with a netcat loop... you could also send it to a web server and extract it from the logs.
+
+![base64_send](https://i.imgur.com/t86UBFf.png)
+
+What the requests looks like:
+
+![get_requests](https://i.imgur.com/8BUyZWn.png)
+
 05/02/2018: Added OSX logic to main script and native shell script for osx.
 
 07/03/2017: Added 2 native (bash and cmd) scripts querying much of the same information, in case Python is not and cannot be installed. They do not output to a file, so pipe it yourself. Also added more Linux enumeration checks to main script.

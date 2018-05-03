@@ -537,7 +537,7 @@ def send2srvrB64(outfiles):
                 lines = []
                 request_count = request_count + 1
         if len(lines) > 0:
-            payload = base64.standard_b64encode(lines)
+            payload = base64.standard_b64encode(''.join(lines))
             try:
                 urllib2.urlopen(url+'/'+str(request_count)+'/'+payload, timeout=1)
             except socket.timeout:
